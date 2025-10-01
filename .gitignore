@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Runtime files
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+
+# Error logs from imports (can be regenerated)
+import-errors.json
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Keep these important files:
+# ✅ konkani_dictionary_csv.csv (source data)
+# ✅ scripts/ (database utilities)
+# ✅ database/ (exports and migrations)
+# ✅ import-spreadsheet.js (legacy import)
+
+# Optional: Ignore large exports in production
+# database/konkani_dictionary_export.sql
+# database/konkani_dictionary_export.json
