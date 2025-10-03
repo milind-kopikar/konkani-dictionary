@@ -272,12 +272,48 @@ app.post('/api/migrate', async (req, res) => {
       });
     }
     
-    // Read and execute SQL file
-    const sqlPath = path.join(__dirname, 'database', 'konkani_dictionary_export.sql');
-    const sql = fs.readFileSync(sqlPath, 'utf8');
+    // Create schema
+    console.log('📖 Creating database schema...');
+    const schemaPath = path.join(__dirname, 'database', 'railway_schema.sql');
+    const schema = fs.readFileSync(schemaPath, 'utf8');
+    await pool.query(schema);
     
-    console.log('📖 Executing SQL migration...');
-    await pool.query(sql);
+    // Import data from JSON
+    console.log('📊 Importing data from JSON...');
+    const jsonPath = path.join(__dirname, 'database', 'konkani_dictionary_export.json');
+    const entries = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+    
+    console.log(`� Importing ${entries.length} entries...`);
+    
+    // Import in batches
+    const batchSize = 100;
+    let imported = 0;
+    
+    for (let i = 0; i < entries.length; i += batchSize) {
+      const batch = entries.slice(i, i + batchSize);
+      
+      for (const entry of batch) {
+        await pool.query(`
+          INSERT INTO dictionary_entries (
+            entry_number, word_konkani_devanagari, word_konkani_english_alphabet,
+            english_meaning, context_usage_sentence, devanagari_needs_correction,
+            meaning_needs_correction
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+          ON CONFLICT (entry_number) DO NOTHING
+        `, [
+          entry.entry_number,
+          entry.word_konkani_devanagari,
+          entry.word_konkani_english_alphabet,
+          entry.english_meaning,
+          entry.context_usage_sentence,
+          entry.devanagari_needs_correction || false,
+          entry.meaning_needs_correction || false
+        ]);
+        imported++;
+      }
+      
+      console.log(`📊 Imported ${Math.min(i + batchSize, entries.length)} / ${entries.length} entries`);
+    }
     
     // Verify migration
     const result = await pool.query('SELECT COUNT(*) FROM dictionary_entries');
@@ -287,7 +323,8 @@ app.post('/api/migrate', async (req, res) => {
     
     res.json({ 
       message: 'Migration completed successfully', 
-      entries: count 
+      entries: count,
+      processed: imported
     });
     
   } catch (error) {
