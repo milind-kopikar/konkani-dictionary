@@ -9,9 +9,16 @@ const PORT = process.env.PORT || 3002;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // Database connection (Railway and GCP compatible)
+let connectionString = process.env.DATABASE_URL;
+
+// If DATABASE_URL is not provided, construct it from PG* variables
+if (!connectionString && process.env.PGHOST) {
+  connectionString = `postgresql://${process.env.PGUSER}:${process.env.PGPASSWORD}@${process.env.PGHOST}:${process.env.PGPORT}/${process.env.PGDATABASE}`;
+}
+
 const pool = new Pool({
   // Railway format (connectionString takes precedence)
-  connectionString: process.env.DATABASE_URL,
+  connectionString: connectionString,
   // Fallback to Railway PG* variables or GCP individual parameters
   host: process.env.PGHOST || process.env.DB_HOST || 'localhost',
   port: process.env.PGPORT || process.env.DB_PORT || 5432,
@@ -22,6 +29,16 @@ const pool = new Pool({
   ssl: NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   client_encoding: 'UTF8'
 });
+
+// Debug database connection
+console.log('🔧 Database Configuration:');
+console.log('  NODE_ENV:', NODE_ENV);
+console.log('  CONNECTION_STRING:', connectionString ? 'Present' : 'Missing');
+console.log('  PGHOST:', process.env.PGHOST || 'Missing');
+console.log('  PGPORT:', process.env.PGPORT || 'Missing');
+console.log('  PGDATABASE:', process.env.PGDATABASE || 'Missing');
+console.log('  PGUSER:', process.env.PGUSER || 'Missing');
+console.log('  PGPASSWORD:', process.env.PGPASSWORD ? 'Present' : 'Missing');
 
 // CORS configuration for multiple origins (GitHub Pages + custom domains)
 const corsOptions = {
