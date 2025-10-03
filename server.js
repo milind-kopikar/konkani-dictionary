@@ -248,6 +248,57 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
+// Migration endpoint (for Railway deployment)
+app.post('/api/migrate', async (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    
+    console.log('🚀 Starting database migration...');
+    
+    // Check if table already exists
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'dictionary_entries'
+      );
+    `);
+    
+    if (tableCheck.rows[0].exists) {
+      const countResult = await pool.query('SELECT COUNT(*) FROM dictionary_entries');
+      return res.json({ 
+        message: 'Database already migrated', 
+        entries: parseInt(countResult.rows[0].count) 
+      });
+    }
+    
+    // Read and execute SQL file
+    const sqlPath = path.join(__dirname, 'database', 'konkani_dictionary_export.sql');
+    const sql = fs.readFileSync(sqlPath, 'utf8');
+    
+    console.log('📖 Executing SQL migration...');
+    await pool.query(sql);
+    
+    // Verify migration
+    const result = await pool.query('SELECT COUNT(*) FROM dictionary_entries');
+    const count = parseInt(result.rows[0].count);
+    
+    console.log(`✅ Migration completed: ${count} entries imported`);
+    
+    res.json({ 
+      message: 'Migration completed successfully', 
+      entries: count 
+    });
+    
+  } catch (error) {
+    console.error('Migration failed:', error);
+    res.status(500).json({ 
+      error: 'Migration failed', 
+      details: error.message 
+    });
+  }
+});
+
 // WhatsApp Bot Optimized Endpoints
 // Quick search for bot responses (limited results)
 app.get('/api/bot/search', async (req, res) => {
