@@ -12,12 +12,12 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 const pool = new Pool({
   // Railway format (connectionString takes precedence)
   connectionString: process.env.DATABASE_URL,
-  // Fallback to individual parameters for GCP Cloud SQL
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'konkani_dictionary',
-  user: process.env.DB_USER || 'konkani_dev',
-  password: process.env.DB_PASSWORD,
+  // Fallback to Railway PG* variables or GCP individual parameters
+  host: process.env.PGHOST || process.env.DB_HOST || 'localhost',
+  port: process.env.PGPORT || process.env.DB_PORT || 5432,
+  database: process.env.PGDATABASE || process.env.DB_NAME || 'konkani_dictionary',
+  user: process.env.PGUSER || process.env.DB_USER || 'konkani_dev',
+  password: process.env.PGPASSWORD || process.env.DB_PASSWORD,
   // SSL for production (required by GCP Cloud SQL)
   ssl: NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   client_encoding: 'UTF8'
