@@ -25,8 +25,11 @@ const pool = new Pool({
   database: process.env.PGDATABASE || process.env.DB_NAME || 'konkani_dictionary',
   user: process.env.PGUSER || process.env.DB_USER || 'konkani_dev',
   password: process.env.PGPASSWORD || process.env.DB_PASSWORD,
-  // SSL for production (required by GCP Cloud SQL)
-  ssl: NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  // SSL configuration for Railway (more permissive)
+  ssl: NODE_ENV === 'production' ? { 
+    rejectUnauthorized: false,
+    require: true 
+  } : false,
   client_encoding: 'UTF8'
 });
 
