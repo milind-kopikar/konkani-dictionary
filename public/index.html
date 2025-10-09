@@ -163,42 +163,140 @@
         }
         
         .entry {
-            background: #f8f9fa;
-            margin-bottom: 15px;
-            padding: 20px;
-            border-radius: 10px;
-            border-left: 4px solid #4ECDC4;
-            transition: transform 0.2s ease;
+            background: white;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
         
         .entry:hover {
-            transform: translateX(5px);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+        }
+        
+        .entry-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
         .entry-number {
-            color: #666;
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        
+        .suggest-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 15px;
             font-size: 0.8em;
-            margin-bottom: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
         }
         
-        .entry-word {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 10px;
-            flex-wrap: wrap;
+        .suggest-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.05);
         }
         
-        .konkani-devanagari {
+        .entry-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+        }
+        
+        .entry-field {
+            padding: 15px 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .entry-field:nth-child(odd) {
+            border-right: 1px solid #f0f0f0;
+            background: #fafbfc;
+        }
+        
+        .entry-field:last-child,
+        .entry-field:nth-last-child(2) {
+            border-bottom: none;
+        }
+        
+        .field-label {
+            font-size: 0.8em;
+            font-weight: 600;
+            color: #6c757d;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .field-value {
+            font-size: 1.1em;
+            line-height: 1.4;
+            color: #333;
+        }
+        
+        .field-value.devanagari {
+            font-family: 'Noto Sans Devanagari', sans-serif;
             font-size: 1.3em;
             font-weight: bold;
-            color: #FF6B6B;
+            color: #e74c3c;
         }
         
-        .konkani-english {
-            font-size: 1.1em;
+        .field-value.english-alphabet {
+            color: #3498db;
             font-weight: 600;
-            color: #4ECDC4;
+        }
+        
+        .field-value.meaning {
+            color: #27ae60;
+            font-weight: 500;
+        }
+        
+        .field-value.example {
+            font-family: 'Noto Sans Devanagari', sans-serif;
+            color: #8e44ad;
             font-style: italic;
+        }
+        
+        .field-value.missing {
+            color: #adb5bd;
+            font-style: italic;
+        }
+        
+        .needs-correction {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 8px 15px;
+            margin: 10px 20px 0;
+            border-radius: 6px;
+            font-size: 0.85em;
+        }
+        
+        @media (max-width: 768px) {
+            .entry-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .entry-field {
+                border-right: none !important;
+                background: white !important;
+            }
+            
+            .entry-header {
+                flex-direction: column;
+                text-align: center;
+                gap: 10px;
+            }
         }
         
         .english-meaning {
@@ -448,19 +546,55 @@
             
             resultsContainer.innerHTML = entries.map(entry => `
                 <div class="entry">
-                    <div class="entry-number">Entry #${entry.entry_number}</div>
-                    <div class="entry-word">
-                        ${entry.word_konkani_devanagari ? `<div class="konkani-devanagari">${entry.word_konkani_devanagari}</div>` : ''}
-                        ${entry.word_konkani_english_alphabet && 
-                          entry.word_konkani_english_alphabet !== `[${entry.word_konkani_devanagari}]` ? 
-                          `<div class="konkani-english">${entry.word_konkani_english_alphabet.replace(/^\[|\]$/g, '')}</div>` : ''}
+                    <div class="entry-header">
+                        <div class="entry-number">Entry #${entry.entry_number}</div>
+                        <button class="suggest-btn" onclick="suggestChanges('${entry.id}', ${entry.entry_number})">
+                            ✏️ Suggest Changes/Additions
+                        </button>
                     </div>
-                    <div class="english-meaning">${entry.english_meaning || 'No meaning available'}</div>
-                    ${entry.context_usage_sentence ? `<div class="context">📝 ${entry.context_usage_sentence}</div>` : ''}
+                    
+                    <div class="entry-grid">
+                        <div class="entry-field">
+                            <div class="field-label">Konkani Word (Devanagari)</div>
+                            <div class="field-value devanagari ${!entry.word_konkani_devanagari ? 'missing' : ''}">
+                                ${entry.word_konkani_devanagari || '--'}
+                            </div>
+                        </div>
+                        
+                        <div class="entry-field">
+                            <div class="field-label">Konkani Word (English Alphabet)</div>
+                            <div class="field-value english-alphabet ${!entry.word_konkani_english_alphabet || entry.word_konkani_english_alphabet === '[' + entry.word_konkani_devanagari + ']' ? 'missing' : ''}">
+                                ${entry.word_konkani_english_alphabet && entry.word_konkani_english_alphabet !== '[' + entry.word_konkani_devanagari + ']' ? 
+                                  entry.word_konkani_english_alphabet.replace(/^\[|\]$/g, '') : '--'}
+                            </div>
+                        </div>
+                        
+                        <div class="entry-field">
+                            <div class="field-label">English Meaning</div>
+                            <div class="field-value meaning ${!entry.english_meaning ? 'missing' : ''}">
+                                ${entry.english_meaning || '--'}
+                            </div>
+                        </div>
+                        
+                        <div class="entry-field">
+                            <div class="field-label">Usage Example (Devanagari)</div>
+                            <div class="field-value example ${!entry.context_usage_sentence ? 'missing' : ''}">
+                                ${entry.context_usage_sentence || '--'}
+                            </div>
+                        </div>
+                    </div>
+                    
                     ${entry.devanagari_needs_correction || entry.meaning_needs_correction ? 
-                        '<div style="color: orange; font-size: 0.8em; margin-top: 10px;">⚠️ Needs correction</div>' : ''}
+                        '<div class="needs-correction">⚠️ This entry has been flagged as needing correction</div>' : ''}
                 </div>
             `).join('');
+        }
+        
+        function suggestChanges(entryId, entryNumber) {
+            // Store the entry ID and redirect to suggestion form
+            localStorage.setItem('selectedEntryId', entryId);
+            localStorage.setItem('selectedEntryNumber', entryNumber);
+            window.location.href = '/suggest-corrections.html?entryId=' + entryId;
         }
         
         function showLoading() {
