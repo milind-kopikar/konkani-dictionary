@@ -92,6 +92,7 @@ app.get('/api/dictionary', async (req, res) => {
 
     const result = await pool.query(`
       SELECT 
+        id,
         entry_number,
         word_konkani_devanagari,
         word_konkani_english_alphabet,
