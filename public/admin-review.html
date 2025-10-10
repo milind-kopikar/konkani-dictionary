@@ -667,11 +667,24 @@
                     
                     ${suggestion.suggestion_type === 'correction' ? renderComparison(suggestion) : renderAddition(suggestion)}
                     
-                    ${suggestion.contributor_notes ? `
-                        <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 8px;">
-                            <strong>Contributor Notes:</strong> ${suggestion.contributor_notes}
+                    <div style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-left: 4px solid #007bff; border-radius: 8px;">
+                        <h5 style="margin: 0 0 10px 0; color: #495057;">💬 Contributor Notes:</h5>
+                        <div style="color: #6c757d; font-style: italic;">
+                            ${suggestion.contributor_notes || 'No additional notes provided by the contributor.'}
                         </div>
-                    ` : ''}
+                    </div>
+                    
+                    <!-- Debug information (remove in production) -->
+                    <details style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 8px; font-size: 0.9em;">
+                        <summary style="cursor: pointer; font-weight: bold; color: #856404;">🔍 Debug: Raw Suggestion Data</summary>
+                        <pre style="margin-top: 10px; background: white; padding: 10px; border-radius: 4px; overflow: auto; max-height: 200px;">${JSON.stringify({
+                            id: suggestion.id,
+                            suggested_context_usage_sentence: suggestion.suggested_context_usage_sentence,
+                            contributor_notes: suggestion.contributor_notes,
+                            original_context_usage_sentence: suggestion.original_context_usage_sentence,
+                            suggestion_type: suggestion.suggestion_type
+                        }, null, 2)}</pre>
+                    </details>
                 </div>
             `).join('');
         }
@@ -693,6 +706,10 @@
                             <div class="field-label">Meaning:</div>
                             <div class="field-value">${suggestion.original_english_meaning || 'N/A'}</div>
                         </div>
+                        <div class="field-comparison">
+                            <div class="field-label">Usage Example:</div>
+                            <div class="field-value devanagari-text">${suggestion.original_context_usage_sentence || '<em style="color: #6c757d;">Not provided</em>'}</div>
+                        </div>
                     </div>
                     <div class="comparison-section suggested-section">
                         <h4>✏️ Suggested</h4>
@@ -707,6 +724,10 @@
                         <div class="field-comparison">
                             <div class="field-label">Meaning:</div>
                             <div class="field-value">${suggestion.suggested_english_meaning || 'N/A'}</div>
+                        </div>
+                        <div class="field-comparison">
+                            <div class="field-label">Usage Example:</div>
+                            <div class="field-value devanagari-text">${suggestion.suggested_context_usage_sentence || '<em style="color: #6c757d;">Not provided</em>'}</div>
                         </div>
                     </div>
                 </div>
@@ -729,12 +750,10 @@
                         <div class="field-label">Meaning:</div>
                         <div class="field-value">${suggestion.suggested_english_meaning || 'N/A'}</div>
                     </div>
-                    ${suggestion.suggested_context_usage_sentence ? `
-                        <div class="field-comparison">
-                            <div class="field-label">Usage Example:</div>
-                            <div class="field-value">${suggestion.suggested_context_usage_sentence}</div>
-                        </div>
-                    ` : ''}
+                    <div class="field-comparison">
+                        <div class="field-label">Usage Example:</div>
+                        <div class="field-value devanagari-text">${suggestion.suggested_context_usage_sentence || '<em style="color: #6c757d;">Not provided</em>'}</div>
+                    </div>
                 </div>
             `;
         }
