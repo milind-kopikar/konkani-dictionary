@@ -493,18 +493,24 @@
         
         // Submit suggestion
         window.submitSuggestion = async function() {
+            console.log('submitSuggestion called');
+            
             const suggestionType = document.querySelector('input[name="suggestionType"]:checked').value;
             const contributorName = document.getElementById('contributorName').value.trim();
             const contributorEmail = document.getElementById('contributorEmail').value.trim();
             
+            console.log('Form values:', { suggestionType, contributorName, contributorEmail });
+            
             // Validation
             if (!contributorName || !contributorEmail) {
+                console.log('Validation failed: missing name or email');
                 showNotification('Please provide your name and email', 'error');
                 return;
             }
             
             if (!document.getElementById('suggestedDevanagari').value.trim() && 
                 !document.getElementById('suggestedMeaning').value.trim()) {
+                console.log('Validation failed: no content provided');
                 showNotification('Please provide at least a Konkani word or English meaning', 'error');
                 return;
             }
@@ -521,7 +527,11 @@
                 contributorEmail
             };
             
+            console.log('Suggestion data:', suggestionData);
+            console.log('API_BASE:', API_BASE);
+            
             try {
+                console.log('Sending request to:', `${API_BASE}/suggestions`);
                 const response = await fetch(`${API_BASE}/suggestions`, {
                     method: 'POST',
                     headers: {
@@ -530,7 +540,12 @@
                     body: JSON.stringify(suggestionData)
                 });
                 
+                console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
+                
                 if (response.ok) {
+                    const responseData = await response.json();
+                    console.log('Success response:', responseData);
                     showNotification(
                         'Thank you! Your suggestion has been submitted and will be reviewed by our expert committee. You will be notified via email once it\'s reviewed.', 
                         'success'
@@ -540,11 +555,13 @@
                     selectedEntry = null;
                     document.getElementById('currentEntrySection').style.display = 'none';
                 } else {
-                    throw new Error('Failed to submit suggestion');
+                    const errorText = await response.text();
+                    console.error('API Error:', response.status, errorText);
+                    throw new Error(`Failed to submit suggestion: ${errorText}`);
                 }
             } catch (error) {
-                console.error('Submission error:', error);
-                showNotification('Error submitting suggestion. Please try again.', 'error');
+                console.error('Submit error:', error);
+                showNotification(`Error submitting suggestion: ${error.message}`, 'error');
             }
         };
         
