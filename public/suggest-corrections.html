@@ -216,6 +216,40 @@
                 flex-direction: column;
             }
         }
+        
+        /* Notification styles */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: none;
+            max-width: 400px;
+            word-wrap: break-word;
+        }
+        
+        .notification.success {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border-left: 4px solid #155724;
+        }
+        
+        .notification.error {
+            background: linear-gradient(135deg, #dc3545, #e74c3c);
+            color: white;
+            border-left: 4px solid #721c24;
+        }
+        
+        .notification.info {
+            background: linear-gradient(135deg, #17a2b8, #007bff);
+            color: white;
+            border-left: 4px solid #0c5460;
+        }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;700&display=swap" rel="stylesheet">
 </head>
@@ -264,18 +298,18 @@
             
             <!-- Suggested changes -->
             <div class="form-section">
-                <h3>✏️ Your Suggestion</h3>
-                <p style="color: #6c757d; margin-bottom: 20px;">Fill in any fields you want to add or correct. Leave blank if no change needed.</p>
+                <h3>✏️ Edit Entry Details</h3>
+                <p style="color: #6c757d; margin-bottom: 20px;">Current values are pre-filled below. Edit any field you want to improve or leave blank to remove. Fields showing "--" are currently empty.</p>
                 
                 <div class="form-row">
                     <div class="form-group">
                         <label for="suggestedDevanagari">📝 Konkani Word (Devanagari Script):</label>
-                        <input type="text" id="suggestedDevanagari" class="devanagari-input" placeholder="कोंकणी शब्द (यदि उपलब्ध नहीं तो छोड़ें)">
+                        <input type="text" id="suggestedDevanagari" class="devanagari-input" placeholder="कोंकणी शब्द (current value pre-filled if available)">
                         <small style="color: #6c757d;">The word written in Devanagari script</small>
                     </div>
                     <div class="form-group">
                         <label for="suggestedEnglishAlphabet">🔤 Konkani Word (English Alphabet):</label>
-                        <input type="text" id="suggestedEnglishAlphabet" placeholder="konkani shabd (pronunciation guide)">
+                        <input type="text" id="suggestedEnglishAlphabet" placeholder="konkani shabd (current pronunciation pre-filled if available)">
                         <small style="color: #6c757d;">How the Konkani word sounds in English letters</small>
                     </div>
                 </div>
@@ -283,14 +317,14 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="suggestedMeaning">🌍 English Meaning:</label>
-                        <input type="text" id="suggestedMeaning" placeholder="English translation or meaning">
+                        <input type="text" id="suggestedMeaning" placeholder="English translation (current meaning pre-filled if available)">
                         <small style="color: #6c757d;">What this word means in English</small>
                     </div>
                 </div>
                 
                 <div class="form-group">
                     <label for="suggestedContext">📖 Usage Example (in Devanagari):</label>
-                    <textarea id="suggestedContext" rows="3" placeholder="उदाहरण वाक्य जिसमें यह शब्द का उपयोग होता है..."></textarea>
+                    <textarea id="suggestedContext" rows="3" placeholder="उदाहरण वाक्य (current example pre-filled if available)..."></textarea>
                     <small style="color: #6c757d;">A sentence showing how this word is used (optional but helpful)</small>
                 </div>
                 
@@ -359,12 +393,11 @@
                 localStorage.removeItem('selectedEntryNumber');
                 localStorage.removeItem('selectedEntryData');
                 
-                // Hide the search section since we already have an entry
-                document.querySelector('.form-section').style.display = 'none';
+                // Note: loadEntryData function now handles hiding search section
                 
                 // Show a message about which entry is being edited
                 if (entryNumber) {
-                    showNotification(`Editing Entry #${entryNumber}. You can modify any field below or add missing information.`, 'success');
+                    console.log(`Will edit Entry #${entryNumber}`);
                 }
             } else {
                 console.log('No entryId found - showing search form');
@@ -375,54 +408,30 @@
         function loadEntryData(entry) {
             selectedEntry = entry;
             
-            // Show current entry with clear field structure
-            document.getElementById('currentEntrySection').style.display = 'block';
-            document.getElementById('currentEntry').innerHTML = `
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                    <div>
-                        <h4 style="color: #e74c3c; margin-bottom: 8px;">📝 Konkani Word (Devanagari)</h4>
-                        <div style="font-family: 'Noto Sans Devanagari', sans-serif; font-size: 1.3em; font-weight: bold; color: ${entry.word_konkani_devanagari ? '#333' : '#adb5bd'};">
-                            ${entry.word_konkani_devanagari || '--'}
-                        </div>
-                    </div>
-                    <div>
-                        <h4 style="color: #3498db; margin-bottom: 8px;">🔤 Konkani Word (English Alphabet)</h4>
-                        <div style="font-size: 1.1em; font-weight: 600; color: ${entry.word_konkani_english_alphabet && entry.word_konkani_english_alphabet !== '[' + entry.word_konkani_devanagari + ']' ? '#333' : '#adb5bd'};">
-                            ${entry.word_konkani_english_alphabet && entry.word_konkani_english_alphabet !== '[' + entry.word_konkani_devanagari + ']' ? 
-                              entry.word_konkani_english_alphabet.replace(/^\[|\]$/g, '') : '--'}
-                        </div>
-                    </div>
-                    <div>
-                        <h4 style="color: #27ae60; margin-bottom: 8px;">🌍 English Meaning</h4>
-                        <div style="font-size: 1.1em; color: ${entry.english_meaning ? '#333' : '#adb5bd'};">
-                            ${entry.english_meaning || '--'}
-                        </div>
-                    </div>
-                    <div>
-                        <h4 style="color: #8e44ad; margin-bottom: 8px;">📖 Usage Example (Devanagari)</h4>
-                        <div style="font-family: 'Noto Sans Devanagari', sans-serif; font-style: italic; color: ${entry.context_usage_sentence ? '#333' : '#adb5bd'};">
-                            ${entry.context_usage_sentence || '--'}
-                        </div>
-                    </div>
-                </div>
-                <div style="background: #e8f4f8; padding: 15px; border-radius: 8px; border-left: 4px solid #17a2b8;">
-                    <strong>💡 What you can do:</strong><br>
-                    • Fill in any missing fields (marked with '--')<br>
-                    • Correct any errors you notice<br>
-                    • Add additional information like usage examples<br>
-                    • Improve existing translations or spellings
-                </div>
-            `;
+            // Hide the search section since we already have an entry
+            document.querySelector('.form-section').style.display = 'none';
             
-            // Pre-fill the form with current values for editing
+            // Pre-fill the form with current values for editing - NO redundant display
             document.getElementById('suggestedDevanagari').value = entry.word_konkani_devanagari || '';
-            document.getElementById('suggestedEnglishAlphabet').value = entry.word_konkani_english_alphabet ? 
-                entry.word_konkani_english_alphabet.replace(/^\[|\]$/g, '') : '';
+            
+            // Fix for English alphabet field - only use actual English alphabet, not Devanagari
+            let englishAlphabet = '';
+            if (entry.word_konkani_english_alphabet && 
+                entry.word_konkani_english_alphabet !== '[' + entry.word_konkani_devanagari + ']' &&
+                !entry.word_konkani_english_alphabet.startsWith('[') &&
+                !entry.word_konkani_english_alphabet.endsWith(']')) {
+                englishAlphabet = entry.word_konkani_english_alphabet;
+            }
+            document.getElementById('suggestedEnglishAlphabet').value = englishAlphabet;
+            
             document.getElementById('suggestedMeaning').value = entry.english_meaning || '';
             document.getElementById('suggestedContext').value = entry.context_usage_sentence || '';
             
             // Select correction type since we're editing an existing entry
             document.querySelector('input[value="correction"]').checked = true;
+            
+            // Show helpful message about editing
+            showNotification(`Editing Entry #${entry.entry_number}. All current values are pre-filled. Modify any field you want to improve or add missing information.`, 'info');
         }
         
         // Search for existing entries
@@ -546,22 +555,52 @@
                 if (response.ok) {
                     const responseData = await response.json();
                     console.log('Success response:', responseData);
+                    
+                    // Create detailed success message with submitted entry info
+                    let submittedWord = '';
+                    if (suggestionData.suggestedDevanagari) {
+                        submittedWord = suggestionData.suggestedDevanagari;
+                    } else if (suggestionData.suggestedMeaning) {
+                        submittedWord = suggestionData.suggestedMeaning;
+                    } else {
+                        submittedWord = 'Entry';
+                    }
+                    
                     showNotification(
-                        'Thank you! Your suggestion has been submitted and will be reviewed by our expert committee. You will be notified via email once it\'s reviewed.', 
+                        `✅ SUCCESS! Your suggestion for "${submittedWord}" has been submitted successfully (ID: ${responseData.suggestionId.slice(0, 8)}...). Our expert committee will review it and notify you via email. Thank you for contributing to the Konkani Dictionary!`, 
                         'success'
                     );
-                    // Reset form fields manually
-                    document.getElementById('suggestedDevanagari').value = '';
-                    document.getElementById('suggestedEnglishAlphabet').value = '';
-                    document.getElementById('suggestedMeaning').value = '';
-                    document.getElementById('suggestedContext').value = '';
-                    document.getElementById('contributorNotes').value = '';
-                    document.getElementById('contributorName').value = '';
-                    document.getElementById('contributorEmail').value = '';
-                    document.querySelector('input[value="addition"]').checked = true;
                     
-                    selectedEntry = null;
-                    document.getElementById('currentEntrySection').style.display = 'none';
+                    // Show success page with details and back button
+                    document.querySelector('.suggestion-form').innerHTML = `
+                        <div style="text-align: center; padding: 40px;">
+                            <div style="background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 30px; border-radius: 15px; margin-bottom: 30px;">
+                                <h2 style="margin: 0 0 15px 0;">🎉 Suggestion Submitted Successfully!</h2>
+                                <p style="margin: 0; font-size: 1.1em;">Thank you for contributing to the Amchigale Konkani Dictionary</p>
+                            </div>
+                            
+                            <div style="background: #f8f9fa; padding: 25px; border-radius: 10px; margin-bottom: 30px; text-align: left;">
+                                <h3 style="color: #495057; margin-bottom: 15px;">📝 Your Submission Details:</h3>
+                                <div style="display: grid; gap: 10px;">
+                                    ${suggestionData.suggestedDevanagari ? `<div><strong>Konkani (Devanagari):</strong> ${suggestionData.suggestedDevanagari}</div>` : ''}
+                                    ${suggestionData.suggestedEnglishAlphabet ? `<div><strong>Konkani (English):</strong> ${suggestionData.suggestedEnglishAlphabet}</div>` : ''}
+                                    ${suggestionData.suggestedMeaning ? `<div><strong>English Meaning:</strong> ${suggestionData.suggestedMeaning}</div>` : ''}
+                                    ${suggestionData.suggestedContext ? `<div><strong>Usage Example:</strong> ${suggestionData.suggestedContext}</div>` : ''}
+                                    <div><strong>Submission ID:</strong> ${responseData.suggestionId}</div>
+                                    <div><strong>Status:</strong> Pending Expert Review</div>
+                                </div>
+                            </div>
+                            
+                            <div style="display: flex; gap: 15px; justify-content: center;">
+                                <a href="/" style="background: linear-gradient(135deg, #007bff, #0056b3); color: white; padding: 12px 25px; border-radius: 25px; text-decoration: none; font-weight: 600; transition: all 0.3s ease;">
+                                    🏠 Back to Dictionary
+                                </a>
+                                <button onclick="location.reload()" style="background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 12px 25px; border-radius: 25px; border: none; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">
+                                    ➕ Submit Another Suggestion
+                                </button>
+                            </div>
+                        </div>
+                    `;
                 } else {
                     const errorText = await response.text();
                     console.error('API Error:', response.status, errorText);
@@ -579,12 +618,26 @@
             notification.className = `notification ${type}`;
             notification.style.display = 'block';
             
-            // Auto-hide after 5 seconds for success messages
-            if (type === 'success') {
+            // Fade in animation
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateX(100%)';
+            
+            setTimeout(() => {
+                notification.style.transition = 'all 0.3s ease';
+                notification.style.opacity = '1';
+                notification.style.transform = 'translateX(0)';
+            }, 10);
+            
+            // Auto-hide after 8 seconds for success messages, 6 seconds for errors
+            const hideDelay = type === 'success' ? 8000 : 6000;
+            setTimeout(() => {
+                notification.style.transition = 'all 0.3s ease';
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100%)';
                 setTimeout(() => {
                     notification.style.display = 'none';
-                }, 5000);
-            }
+                }, 300);
+            }, hideDelay);
         }
     </script>
 </body>
