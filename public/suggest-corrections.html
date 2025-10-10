@@ -550,8 +550,16 @@
                         'Thank you! Your suggestion has been submitted and will be reviewed by our expert committee. You will be notified via email once it\'s reviewed.', 
                         'success'
                     );
-                    // Reset form
-                    document.querySelector('form').reset();
+                    // Reset form fields manually
+                    document.getElementById('suggestedDevanagari').value = '';
+                    document.getElementById('suggestedEnglishAlphabet').value = '';
+                    document.getElementById('suggestedMeaning').value = '';
+                    document.getElementById('suggestedContext').value = '';
+                    document.getElementById('contributorNotes').value = '';
+                    document.getElementById('contributorName').value = '';
+                    document.getElementById('contributorEmail').value = '';
+                    document.querySelector('input[value="addition"]').checked = true;
+                    
                     selectedEntry = null;
                     document.getElementById('currentEntrySection').style.display = 'none';
                 } else {
