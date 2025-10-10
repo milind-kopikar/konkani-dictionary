@@ -559,7 +559,7 @@
                         <div class="entry-field">
                             <div class="field-label">Konkani Word (Devanagari)</div>
                             <div class="field-value devanagari ${!entry.word_konkani_devanagari ? 'missing' : ''}">
-                                ${entry.word_konkani_devanagari || '--'}
+                                ${entry.word_konkani_devanagari || '<span style="color: #adb5bd; font-style: italic;">Please add if you know</span>'}
                             </div>
                         </div>
                         
@@ -567,21 +567,21 @@
                             <div class="field-label">Konkani Word (English Alphabet)</div>
                             <div class="field-value english-alphabet ${!entry.word_konkani_english_alphabet || entry.word_konkani_english_alphabet === '[' + entry.word_konkani_devanagari + ']' ? 'missing' : ''}">
                                 ${entry.word_konkani_english_alphabet && entry.word_konkani_english_alphabet !== '[' + entry.word_konkani_devanagari + ']' ? 
-                                  entry.word_konkani_english_alphabet.replace(/^\[|\]$/g, '') : '--'}
+                                  entry.word_konkani_english_alphabet.replace(/^\[|\]$/g, '') : '<span style="color: #adb5bd; font-style: italic;">Please add if you know</span>'}
                             </div>
                         </div>
                         
                         <div class="entry-field">
                             <div class="field-label">English Meaning</div>
                             <div class="field-value meaning ${!entry.english_meaning ? 'missing' : ''}">
-                                ${entry.english_meaning || '--'}
+                                ${entry.english_meaning || '<span style="color: #adb5bd; font-style: italic;">Please add if you know</span>'}
                             </div>
                         </div>
                         
                         <div class="entry-field">
                             <div class="field-label">Usage Example (Devanagari)</div>
                             <div class="field-value example ${!entry.context_usage_sentence ? 'missing' : ''}">
-                                ${entry.context_usage_sentence || '--'}
+                                ${entry.context_usage_sentence || '<span style="color: #adb5bd; font-style: italic;">Please add if you know</span>'}
                             </div>
                         </div>
                     </div>

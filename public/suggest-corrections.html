@@ -281,25 +281,10 @@
                 <div id="currentEntry" class="current-entry"></div>
             </div>
             
-            <!-- Suggestion type -->
-            <div class="form-section">
-                <h3>📝 Type of Suggestion</h3>
-                <div class="suggestion-type">
-                    <label>
-                        <input type="radio" name="suggestionType" value="correction">
-                        <span>Correct/improve existing entry</span>
-                    </label>
-                    <label>
-                        <input type="radio" name="suggestionType" value="addition" checked>
-                        <span>Add completely new entry</span>
-                    </label>
-                </div>
-            </div>
-            
             <!-- Suggested changes -->
             <div class="form-section">
                 <h3>✏️ Edit Entry Details</h3>
-                <p style="color: #6c757d; margin-bottom: 20px;">Current values are pre-filled below. Edit any field you want to improve or leave blank to remove. Fields showing "--" are currently empty.</p>
+                <p style="color: #6c757d; margin-bottom: 20px;">Current values are pre-filled below. Edit any field you want to improve or leave blank to remove. Fields showing "Please add if you know" are currently empty.</p>
                 
                 <div class="form-row">
                     <div class="form-group">
@@ -427,9 +412,6 @@
             document.getElementById('suggestedMeaning').value = entry.english_meaning || '';
             document.getElementById('suggestedContext').value = entry.context_usage_sentence || '';
             
-            // Select correction type since we're editing an existing entry
-            document.querySelector('input[value="correction"]').checked = true;
-            
             // Show helpful message about editing
             showNotification(`Editing Entry #${entry.entry_number}. All current values are pre-filled. Modify any field you want to improve or add missing information.`, 'info');
         }
@@ -504,7 +486,8 @@
         window.submitSuggestion = async function() {
             console.log('submitSuggestion called');
             
-            const suggestionType = document.querySelector('input[name="suggestionType"]:checked').value;
+            // Always treat as correction since we're editing existing entries
+            const suggestionType = 'correction';
             const contributorName = document.getElementById('contributorName').value.trim();
             const contributorEmail = document.getElementById('contributorEmail').value.trim();
             
@@ -591,13 +574,10 @@
                                 </div>
                             </div>
                             
-                            <div style="display: flex; gap: 15px; justify-content: center;">
-                                <a href="/" style="background: linear-gradient(135deg, #007bff, #0056b3); color: white; padding: 12px 25px; border-radius: 25px; text-decoration: none; font-weight: 600; transition: all 0.3s ease;">
+                            <div style="display: flex; justify-content: center;">
+                                <a href="/" style="background: linear-gradient(135deg, #007bff, #0056b3); color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none; font-weight: 600; font-size: 1.1em; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(0,123,255,0.3);">
                                     🏠 Back to Dictionary
                                 </a>
-                                <button onclick="location.reload()" style="background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 12px 25px; border-radius: 25px; border: none; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">
-                                    ➕ Submit Another Suggestion
-                                </button>
                             </div>
                         </div>
                     `;
