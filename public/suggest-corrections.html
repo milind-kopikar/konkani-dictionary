@@ -331,19 +331,26 @@
             const entryNumber = localStorage.getItem('selectedEntryNumber');
             const storedEntryData = localStorage.getItem('selectedEntryData');
             
+            console.log('DOMContentLoaded - entryId:', entryId);
+            console.log('DOMContentLoaded - entryNumber:', entryNumber);
+            console.log('DOMContentLoaded - storedEntryData:', storedEntryData ? 'Available' : 'None');
+            
             if (entryId) {
                 if (storedEntryData) {
                     // Use stored data first for faster loading
                     try {
                         const entry = JSON.parse(storedEntryData);
+                        console.log('Using stored entry data:', entry);
                         loadEntryData(entry);
                     } catch (error) {
                         console.error('Error parsing stored entry data:', error);
                         // Fallback to API fetch
+                        console.log('Falling back to API fetch');
                         selectEntry(entryId);
                     }
                 } else {
                     // Fallback to API fetch
+                    console.log('No stored data, fetching from API');
                     selectEntry(entryId);
                 }
                 
@@ -359,6 +366,8 @@
                 if (entryNumber) {
                     showNotification(`Editing Entry #${entryNumber}. You can modify any field below or add missing information.`, 'success');
                 }
+            } else {
+                console.log('No entryId found - showing search form');
             }
         });
 
@@ -460,15 +469,25 @@
         // Select an entry for correction
         window.selectEntry = async function(entryId) {
             try {
+                console.log('Fetching entry with ID:', entryId);
                 const response = await fetch(`${API_BASE}/dictionary/${entryId}`);
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API Error:', errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
                 const entry = await response.json();
+                console.log('Fetched entry:', entry);
                 
                 // Use the shared function to load entry data
                 loadEntryData(entry);
                 
             } catch (error) {
                 console.error('Error fetching entry:', error);
-                showNotification('Error loading entry details', 'error');
+                showNotification(`Error loading entry details: ${error.message}`, 'error');
             }
         };
         
