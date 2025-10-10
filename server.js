@@ -1084,15 +1084,16 @@ app.get('/api/debug/suggestions', async (req, res) => {
             SELECT 
                 id,
                 suggestion_type,
-                suggested_devanagari,
-                suggested_english_alphabet,
-                suggested_meaning,
+                suggested_word_konkani_devanagari,
+                suggested_word_konkani_english_alphabet,
+                suggested_english_meaning,
                 suggested_context_usage_sentence,
+                contributor_notes,
                 created_at,
                 status
             FROM dictionary_suggestions 
-            WHERE suggested_devanagari LIKE '%आम्चिगेले%' 
-            OR suggested_english_alphabet LIKE '%amchigele%'
+            WHERE suggested_word_konkani_devanagari LIKE '%आम्चिगेले%' 
+            OR suggested_word_konkani_english_alphabet LIKE '%amchigele%'
             ORDER BY created_at DESC
             LIMIT 10
         `);
