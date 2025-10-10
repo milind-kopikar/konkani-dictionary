@@ -211,10 +211,17 @@ app.get('/api/dictionary/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const result = await pool.query(`
-      SELECT * FROM dictionary_entries 
-      WHERE entry_number = $1
-    `, [id]);
+    // Check if the id is a UUID (for id field) or a number (for entry_number field)
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    
+    let query;
+    if (isUUID) {
+      query = `SELECT * FROM dictionary_entries WHERE id = $1`;
+    } else {
+      query = `SELECT * FROM dictionary_entries WHERE entry_number = $1`;
+    }
+    
+    const result = await pool.query(query, [id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Entry not found' });
