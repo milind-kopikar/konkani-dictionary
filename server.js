@@ -1077,37 +1077,6 @@ app.use((error, req, res, next) => {
   });
 });
 
-// Temporary debug endpoint to check suggestions data
-app.get('/api/debug/suggestions', async (req, res) => {
-    try {
-        const result = await pool.query(`
-            SELECT 
-                id,
-                suggestion_type,
-                suggested_word_konkani_devanagari,
-                suggested_word_konkani_english_alphabet,
-                suggested_english_meaning,
-                suggested_context_usage_sentence,
-                contributor_notes,
-                created_at,
-                status
-            FROM dictionary_suggestions 
-            WHERE suggested_word_konkani_devanagari LIKE '%आम्चिगेले%' 
-            OR suggested_word_konkani_english_alphabet LIKE '%amchigele%'
-            ORDER BY created_at DESC
-            LIMIT 10
-        `);
-        
-        res.json({
-            count: result.rows.length,
-            suggestions: result.rows
-        });
-    } catch (error) {
-        console.error('Debug suggestions error:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Konkani Dictionary Server running at http://localhost:${PORT}`);
@@ -1117,7 +1086,6 @@ app.listen(PORT, () => {
   console.log('  GET /api/dictionary/search?q=word&type=all - Search entries');
   console.log('  GET /api/dictionary/:id - Get single entry');
   console.log('  GET /api/stats - Database statistics');
-  console.log('  GET /api/debug/suggestions - Debug suggestions data');
 });
 
 module.exports = app;
