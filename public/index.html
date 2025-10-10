@@ -448,6 +448,7 @@
     <script>
         const API_BASE = 'https://konkani-dictionary-production.up.railway.app/api';
         let currentSearchType = 'all';
+        let currentEntries = []; // Store current entries for suggestion form
         
         // DOM elements
         const searchInput = document.getElementById('searchInput');
@@ -536,6 +537,7 @@
         }
         
         function displayResults(entries, countText) {
+            currentEntries = entries; // Store for suggestion form
             resultsHeader.style.display = 'block';
             resultsCount.textContent = countText;
             
@@ -591,6 +593,12 @@
         }
         
         function suggestChanges(entryId, entryNumber) {
+            // Find the full entry data from current results
+            const entry = currentEntries.find(e => e.id === entryId);
+            if (entry) {
+                // Store the complete entry data
+                localStorage.setItem('selectedEntryData', JSON.stringify(entry));
+            }
             // Store the entry ID and redirect to suggestion form
             localStorage.setItem('selectedEntryId', entryId);
             localStorage.setItem('selectedEntryNumber', entryNumber);
