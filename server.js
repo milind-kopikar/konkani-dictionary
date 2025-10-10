@@ -210,9 +210,11 @@ app.get('/api/dictionary/search', async (req, res) => {
 app.get('/api/dictionary/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('Fetching entry with ID:', id);
     
     // Check if the id is a UUID (for id field) or a number (for entry_number field)
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    console.log('Is UUID:', isUUID);
     
     let query;
     if (isUUID) {
@@ -221,16 +223,21 @@ app.get('/api/dictionary/:id', async (req, res) => {
       query = `SELECT * FROM dictionary_entries WHERE entry_number = $1`;
     }
     
+    console.log('Executing query:', query, 'with param:', id);
     const result = await pool.query(query, [id]);
+    console.log('Query result rows count:', result.rows.length);
 
     if (result.rows.length === 0) {
+      console.log('No entry found for ID:', id);
       return res.status(404).json({ error: 'Entry not found' });
     }
 
+    console.log('Found entry:', result.rows[0].entry_number);
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error fetching entry:', error);
-    res.status(500).json({ error: 'Failed to fetch entry' });
+    console.error('Error details:', error.message, error.stack);
+    res.status(500).json({ error: 'Failed to fetch entry', details: error.message });
   }
 });
 
