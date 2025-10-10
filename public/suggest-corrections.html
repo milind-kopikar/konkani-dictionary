@@ -391,12 +391,28 @@
 
         // Function to load entry data (used by both stored data and API fetch)
         function loadEntryData(entry) {
+            console.log('loadEntryData called with:', entry);
+            
+            if (!entry) {
+                console.error('loadEntryData: No entry data provided');
+                showNotification('Error: No entry data available', 'error');
+                return;
+            }
+            
+            if (!entry.id) {
+                console.error('loadEntryData: Entry missing ID field');
+                showNotification('Error: Invalid entry data', 'error');
+                return;
+            }
+            
             selectedEntry = entry;
+            console.log('Set selectedEntry to:', selectedEntry);
             
             // Hide the search section since we already have an entry
             document.querySelector('.form-section').style.display = 'none';
             
             // Pre-fill the form with current values for editing - NO redundant display
+            console.log('Pre-filling form fields...');
             document.getElementById('suggestedDevanagari').value = entry.word_konkani_devanagari || '';
             
             // Fix for English alphabet field - only use actual English alphabet, not Devanagari
@@ -407,10 +423,13 @@
                 !entry.word_konkani_english_alphabet.endsWith(']')) {
                 englishAlphabet = entry.word_konkani_english_alphabet;
             }
+            console.log('English alphabet field set to:', englishAlphabet);
             document.getElementById('suggestedEnglishAlphabet').value = englishAlphabet;
             
             document.getElementById('suggestedMeaning').value = entry.english_meaning || '';
             document.getElementById('suggestedContext').value = entry.context_usage_sentence || '';
+            
+            console.log('Form fields pre-filled successfully');
             
             // Show helpful message about editing
             showNotification(`Editing Entry #${entry.entry_number}. All current values are pre-filled. Modify any field you want to improve or add missing information.`, 'info');
@@ -460,24 +479,29 @@
         // Select an entry for correction
         window.selectEntry = async function(entryId) {
             try {
-                console.log('Fetching entry with ID:', entryId);
+                console.log('selectEntry called with ID:', entryId);
+                console.log('API_BASE:', API_BASE);
+                console.log('Full URL will be:', `${API_BASE}/dictionary/${entryId}`);
+                
                 const response = await fetch(`${API_BASE}/dictionary/${entryId}`);
                 console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
                 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    console.error('API Error:', errorText);
+                    console.error('API Error Response:', errorText);
                     throw new Error(`HTTP ${response.status}: ${errorText}`);
                 }
                 
                 const entry = await response.json();
-                console.log('Fetched entry:', entry);
+                console.log('Successfully fetched entry:', entry);
                 
                 // Use the shared function to load entry data
                 loadEntryData(entry);
                 
             } catch (error) {
                 console.error('Error fetching entry:', error);
+                console.error('Error details:', error.stack);
                 showNotification(`Error loading entry details: ${error.message}`, 'error');
             }
         };
