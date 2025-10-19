@@ -268,7 +268,27 @@ app.get('/api/stats', async (req, res) => {
 // [Removed temporary debug endpoint '/api/dbinfo']
 
 // Migration endpoint (for Railway deployment)
+
+// Safety guard - ensure migrations can't run against production without explicit approval
+function migrationAllowed(req) {
+  // If not running in production, allow (local/dev) by default
+  if (NODE_ENV !== 'production') return true;
+
+  // If an explicit environment flag and secret header are provided, allow
+  if (process.env.MIGRATE_ALLOW === 'true' && req && req.headers && req.headers['x-migrate-secret'] === process.env.MIGRATE_SECRET) {
+    return true;
+  }
+
+  // Otherwise disallow
+  return false;
+}
+
 app.post('/api/migrate', async (req, res) => {
+  // Prevent accidental production migrations unless explicitly allowed
+  if (!migrationAllowed(req)) {
+    console.warn('Blocked migration attempt: migration not allowed in this environment');
+    return res.status(403).json({ error: 'Migration not allowed in this environment. Set MIGRATE_ALLOW=true and provide x-migrate-secret header to proceed.' });
+  }
   try {
     const fs = require('fs');
     const path = require('path');
