@@ -61,6 +61,40 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 
+// Simple API key middleware for agent endpoints
+const AGENT_API_KEYS = (process.env.AGENT_API_KEYS || '').split(',').map(s => s.trim()).filter(Boolean);
+function requireApiKey(req, res, next) {
+  // If no API keys configured, allow (developer mode). Otherwise require x-api-key header.
+  if (AGENT_API_KEYS.length === 0) return next();
+  const key = req.headers['x-api-key'] || req.query.api_key;
+  if (!key || AGENT_API_KEYS.indexOf(key) === -1) {
+    return res.status(401).json({ error: 'Missing or invalid API key' });
+  }
+  req.agentKey = key;
+  next();
+}
+
+// Very small in-memory rate limiter (per API key or per IP)
+const RATE_LIMIT_WINDOW_MS = parseInt(process.env.AGENT_RATE_WINDOW_MS || '60000', 10); // 1 minute
+const RATE_LIMIT_MAX = parseInt(process.env.AGENT_RATE_MAX || '60', 10); // default 60 requests per window
+const rateMap = new Map(); // key -> {count, windowStart}
+function rateLimit(req, res, next) {
+  const key = req.agentKey || req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+  const now = Date.now();
+  const entry = rateMap.get(key) || { count: 0, windowStart: now };
+  if (now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+    entry.count = 0;
+    entry.windowStart = now;
+  }
+  entry.count++;
+  rateMap.set(key, entry);
+  if (entry.count > RATE_LIMIT_MAX) {
+    res.set('Retry-After', Math.ceil((RATE_LIMIT_WINDOW_MS - (now - entry.windowStart))/1000));
+    return res.status(429).json({ error: 'Rate limit exceeded' });
+  }
+  next();
+}
+
 // Serve static files from public directory
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -437,6 +471,37 @@ app.get('/api/bot/search', async (req, res) => {
       error: 'Search failed',
       bot_response: 'Sorry, I encountered an error while searching. Please try again.'
     });
+  }
+});
+
+// Agent API: small, authenticated endpoint for chatbot agents to query the dictionary
+app.post('/api/agent/search', requireApiKey, rateLimit, async (req, res) => {
+  try {
+    const { q, limit = 5 } = req.body || {};
+    if (!q || q.trim().length < 1) return res.status(400).json({ error: 'q is required' });
+
+    const safeLimit = Math.min(50, parseInt(limit, 10) || 5);
+    const result = await pool.query(`
+      SELECT entry_number, word_konkani_devanagari, word_konkani_english_alphabet, english_meaning, context_usage_sentence
+      FROM dictionary_entries
+      WHERE word_konkani_devanagari ILIKE $1 OR word_konkani_english_alphabet ILIKE $1 OR english_meaning ILIKE $1
+      ORDER BY entry_number
+      LIMIT $2
+    `, [`%${q}%`, safeLimit]);
+
+    // Return a compact payload suitable for chatbot consumption
+    const hits = result.rows.map(r => ({
+      id: r.entry_number,
+      devanagari: r.word_konkani_devanagari,
+      roman: r.word_konkani_english_alphabet,
+      meaning: r.english_meaning,
+      context: r.context_usage_sentence
+    }));
+
+    res.json({ ok: true, q, count: hits.length, results: hits });
+  } catch (err) {
+    console.error('Agent search error:', err);
+    res.status(500).json({ error: 'Agent search failed' });
   }
 });
 
