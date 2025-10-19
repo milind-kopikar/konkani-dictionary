@@ -265,6 +265,8 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
+// [Removed temporary debug endpoint '/api/dbinfo']
+
 // Migration endpoint (for Railway deployment)
 app.post('/api/migrate', async (req, res) => {
   try {
