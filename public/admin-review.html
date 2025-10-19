@@ -781,12 +781,94 @@
         function showReviewModal() {
             const modal = document.getElementById('reviewModal');
             const content = document.getElementById('reviewContent');
-            
+
+            // In the modal allow the expert to edit suggested values before approving
             content.innerHTML = currentSuggestion.suggestion_type === 'correction' 
-                ? renderComparison(currentSuggestion) 
-                : renderAddition(currentSuggestion);
-            
+                ? renderComparisonEditable(currentSuggestion) 
+                : renderAdditionEditable(currentSuggestion);
+
             modal.style.display = 'block';
+        }
+
+        // Editable renderers for the modal
+        function renderComparisonEditable(suggestion) {
+            return `
+                <div class="comparison-grid">
+                    <div class="comparison-section original-section">
+                        <h4>📜 Original</h4>
+                        <div class="field-comparison">
+                            <div class="field-label">Devanagari:</div>
+                            <div class="field-value devanagari-text">${suggestion.original_word_konkani_devanagari || 'N/A'}</div>
+                        </div>
+                        <div class="field-comparison">
+                            <div class="field-label">English Alphabet:</div>
+                            <div class="field-value">${suggestion.original_word_konkani_english_alphabet || 'N/A'}</div>
+                        </div>
+                        <div class="field-comparison">
+                            <div class="field-label">Meaning:</div>
+                            <div class="field-value">${suggestion.original_english_meaning || 'N/A'}</div>
+                        </div>
+                        <div class="field-comparison">
+                            <div class="field-label">Usage Example:</div>
+                            <div class="field-value devanagari-text">${suggestion.original_context_usage_sentence || '<em style="color: #6c757d;">Not provided</em>'}</div>
+                        </div>
+                    </div>
+                    <div class="comparison-section suggested-section">
+                        <h4>✏️ Suggested (editable)</h4>
+                        <div class="field-comparison">
+                            <div class="field-label">Devanagari:</div>
+                            <div class="field-value"><input id="apply_devanagari" style="width:100%; padding:8px;" value="${escapeHtml(suggestion.suggested_word_konkani_devanagari || '')}" /></div>
+                        </div>
+                        <div class="field-comparison">
+                            <div class="field-label">English Alphabet:</div>
+                            <div class="field-value"><input id="apply_roman" style="width:100%; padding:8px;" value="${escapeHtml(suggestion.suggested_word_konkani_english_alphabet || '')}" /></div>
+                        </div>
+                        <div class="field-comparison">
+                            <div class="field-label">Meaning:</div>
+                            <div class="field-value"><textarea id="apply_meaning" style="width:100%; padding:8px;">${escapeHtml(suggestion.suggested_english_meaning || '')}</textarea></div>
+                        </div>
+                        <div class="field-comparison">
+                            <div class="field-label">Usage Example:</div>
+                            <div class="field-value devanagari-text"><textarea id="apply_context" style="width:100%; padding:8px;">${escapeHtml(suggestion.suggested_context_usage_sentence || '')}</textarea></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAdditionEditable(suggestion) {
+            return `
+                <div style="padding: 15px; background: #d4edda; border-radius: 10px; margin: 15px 0;">
+                    <h4>➕ New Entry Suggestion (editable)</h4>
+                    <div class="field-comparison">
+                        <div class="field-label">Devanagari:</div>
+                        <div class="field-value devanagari-text"><input id="apply_devanagari" style="width:100%; padding:8px;" value="${escapeHtml(suggestion.suggested_word_konkani_devanagari || '')}" /></div>
+                    </div>
+                    <div class="field-comparison">
+                        <div class="field-label">English Alphabet:</div>
+                        <div class="field-value"><input id="apply_roman" style="width:100%; padding:8px;" value="${escapeHtml(suggestion.suggested_word_konkani_english_alphabet || '')}" /></div>
+                    </div>
+                    <div class="field-comparison">
+                        <div class="field-label">Meaning:</div>
+                        <div class="field-value"><textarea id="apply_meaning" style="width:100%; padding:8px;">${escapeHtml(suggestion.suggested_english_meaning || '')}</textarea></div>
+                    </div>
+                    <div class="field-comparison">
+                        <div class="field-label">Usage Example:</div>
+                        <div class="field-value devanagari-text"><textarea id="apply_context" style="width:100%; padding:8px;">${escapeHtml(suggestion.suggested_context_usage_sentence || '')}</textarea></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // small helper to escape HTML when injecting into inputs
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
         }
         
         function closeReviewModal() {
@@ -797,6 +879,13 @@
         
         async function reviewSuggestion(decision) {
             const notes = document.getElementById('reviewNotes').value.trim();
+            // collect edits from modal inputs
+            const apply = {
+                suggested_word_konkani_devanagari: document.getElementById('apply_devanagari') ? document.getElementById('apply_devanagari').value.trim() : undefined,
+                suggested_word_konkani_english_alphabet: document.getElementById('apply_roman') ? document.getElementById('apply_roman').value.trim() : undefined,
+                suggested_english_meaning: document.getElementById('apply_meaning') ? document.getElementById('apply_meaning').value.trim() : undefined,
+                suggested_context_usage_sentence: document.getElementById('apply_context') ? document.getElementById('apply_context').value.trim() : undefined
+            };
             
             try {
                 const response = await fetch(`${API_BASE}/admin/suggestions/${currentSuggestion.id}/review`, {
@@ -807,7 +896,8 @@
                     },
                     body: JSON.stringify({
                         decision,
-                        notes
+                        notes,
+                        apply
                     })
                 });
                 

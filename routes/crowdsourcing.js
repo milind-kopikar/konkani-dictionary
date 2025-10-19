@@ -346,8 +346,8 @@ router.get('/admin/suggestions/:id', verifyExpert, async (req, res) => {
 // 7. Review suggestion (approve/reject)
 router.post('/admin/suggestions/:id/review', verifyExpert, async (req, res) => {
     try {
-        const { id } = req.params;
-        const { decision, notes } = req.body;
+    const { id } = req.params;
+    const { decision, notes, apply } = req.body;
 
         if (!['approved', 'rejected'].includes(decision)) {
             return res.status(400).json({ message: 'Decision must be "approved" or "rejected"' });
@@ -378,10 +378,10 @@ router.post('/admin/suggestions/:id/review', verifyExpert, async (req, res) => {
             `, [decision, req.user.id, notes, id]);
 
             // If approved, apply changes to dictionary
-            if (decision === 'approved') {
+                if (decision === 'approved') {
                 if (suggestion.suggestion_type === 'addition') {
                     // Add new entry
-                    const newEntry = await client.query(`
+                        const newEntry = await client.query(`
                         INSERT INTO dictionary_entries (
                             word_konkani_devanagari,
                             word_konkani_english_alphabet,
@@ -390,10 +390,11 @@ router.post('/admin/suggestions/:id/review', verifyExpert, async (req, res) => {
                         ) VALUES ($1, $2, $3, $4)
                         RETURNING *
                     `, [
-                        suggestion.suggested_word_konkani_devanagari,
-                        suggestion.suggested_word_konkani_english_alphabet,
-                        suggestion.suggested_english_meaning,
-                        suggestion.suggested_context_usage_sentence
+                            // allow expert edits (apply) to override suggested values
+                            (apply && apply.suggested_word_konkani_devanagari) || suggestion.suggested_word_konkani_devanagari,
+                            (apply && apply.suggested_word_konkani_english_alphabet) || suggestion.suggested_word_konkani_english_alphabet,
+                            (apply && apply.suggested_english_meaning) || suggestion.suggested_english_meaning,
+                            (apply && apply.suggested_context_usage_sentence) || suggestion.suggested_context_usage_sentence
                     ]);
 
                     // Log the change
@@ -416,7 +417,7 @@ router.post('/admin/suggestions/:id/review', verifyExpert, async (req, res) => {
                         req.user.id
                     ]);
 
-                } else if (suggestion.suggestion_type === 'correction' && suggestion.original_entry_id) {
+                    } else if (suggestion.suggestion_type === 'correction' && suggestion.original_entry_id) {
                     // Get current entry for logging
                     const currentEntry = await client.query(
                         'SELECT * FROM dictionary_entries WHERE id = $1',
@@ -434,10 +435,11 @@ router.post('/admin/suggestions/:id/review', verifyExpert, async (req, res) => {
                             updated_at = NOW()
                         WHERE id = $5
                     `, [
-                        suggestion.suggested_word_konkani_devanagari,
-                        suggestion.suggested_word_konkani_english_alphabet,
-                        suggestion.suggested_english_meaning,
-                        suggestion.suggested_context_usage_sentence,
+                        // allow expert edits to override suggested values
+                        (apply && apply.suggested_word_konkani_devanagari) || suggestion.suggested_word_konkani_devanagari,
+                        (apply && apply.suggested_word_konkani_english_alphabet) || suggestion.suggested_word_konkani_english_alphabet,
+                        (apply && apply.suggested_english_meaning) || suggestion.suggested_english_meaning,
+                        (apply && apply.suggested_context_usage_sentence) || suggestion.suggested_context_usage_sentence,
                         suggestion.original_entry_id
                     ]);
 
