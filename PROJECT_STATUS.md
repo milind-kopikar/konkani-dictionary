@@ -8,8 +8,10 @@ Building a comprehensive Konkani-English dictionary with crowdsourcing capabilit
 
 ### 1. **Core Dictionary System** ✅
 - **Database**: PostgreSQL with 4,381 Konkani entries deployed on Railway
-- **Backend**: Node.js/Express REST API with full CRUD operations
-- **Frontend**: Web interface with search functionality
+    npm install --save-dev openai
+    # LLM integration is implemented as offline/dev tooling under tools/llm/
+    # If you need to run LLM verification locally, install the OpenAI SDK in your dev environment:
+    # Add OPENAI_API_KEY to your local environment when running tools in tools/llm/
 - **Deployment**: Live at https://konkani-dictionary-production.up.railway.app/
 
 ### 2. **Crowdsourcing System** ✅ 
@@ -23,18 +25,16 @@ Building a comprehensive Konkani-English dictionary with crowdsourcing capabilit
 - **Structured Entry Display**: Grid layout with missing data indicators
 - **Individual Edit Buttons**: Per-entry "Suggest Changes" functionality
 - **Auto-loading Forms**: Pre-filled suggestion forms for seamless editing
-- **Debug Tools**: Admin panel includes debug section for troubleshooting
+npm install --save-dev openai
 
 ### 4. **Recent Bug Fixes** ✅
 - **ID Field Issue**: Fixed undefined entryId parameters in API calls
 - **Expert Panel Display**: Enhanced to always show usage sentence fields
 - **Field Mapping**: Verified correct database column names and data storage
-
-## 🔧 **TECHNICAL ARCHITECTURE**
-
-### **Database (PostgreSQL on Railway)**
-```sql
-dictionary_entries (4,381 records)
+LLM integration and verification helpers live in `tools/llm/` and should be
+executed offline or in a separate service. The main API server must NOT
+require LLM SDKs or call LLMs directly. Instead, expose a machine-friendly
+API endpoint (e.g. /api/agent/search) and let external agents call that.
 ├── word_konkani_devanagari
 ├── word_konkani_english_alphabet  
 ├── english_meaning
@@ -45,40 +45,23 @@ dictionary_suggestions (crowdsourcing)
 ├── suggested_word_konkani_devanagari
 ├── suggested_word_konkani_english_alphabet
 ├── suggested_english_meaning
-├── suggested_context_usage_sentence
-└── review workflow fields
-
 contributors (user management)
 dictionary_change_log (audit trail)
-suggestion_votes (community voting)
-```
-
-### **API Endpoints**
 ```javascript
 // Core Dictionary
 GET /api/dictionary - List entries (paginated)
 GET /api/dictionary/search - Search with type filtering
-GET /api/dictionary/:id - Get single entry
-
 // Crowdsourcing
 POST /api/suggestions - Submit suggestions
-GET /api/admin/suggestions - Expert review list
-POST /api/admin/suggestions/:id/approve - Approve changes
 POST /api/admin/suggestions/:id/reject - Reject changes
 
-// Authentication
-POST /api/admin/login - Expert login
 GET /api/admin/dashboard - Admin statistics
 ```
-
-### **Frontend Files**
 ```
-public/
 ├── index.html - Main dictionary interface
 ├── suggest-corrections.html - Public suggestion form
 ├── admin-review.html - Expert review panel
 └── styles/ - CSS styling
-```
 
 ## 🚀 **NEXT PHASE: AI INTEGRATION**
 
