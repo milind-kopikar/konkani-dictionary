@@ -2,8 +2,27 @@
 <html>
 <head>
     <title>Test API Connection</title>
+    <style>
+        .back-home-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .back-home-btn:hover {
+            background: #0056b3;
+        }
+    </style>
 </head>
 <body>
+    <a href="index.html" class="back-home-btn">🏠 Back to Dictionary</a>
     <h1>API Connection Test</h1>
     <button onclick="testAPI()">Test API</button>
     <div id="result"></div>

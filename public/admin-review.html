@@ -31,6 +31,25 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 20px;
+        }
+        
+        .back-home-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .back-home-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-1px);
         }
         
         .header h1 {
@@ -399,6 +418,7 @@
     <div id="mainPanel" style="display: none;">
         <div class="header">
             <div class="header-content">
+                <a href="index.html" class="back-home-btn">🏠 Back to Dictionary</a>
                 <h1>📋 Expert Review Panel</h1>
                 <div class="user-info">
                     <span id="userWelcome">Welcome, Expert</span>
