@@ -1,5 +1,6 @@
 // Crowdsourcing API routes for Konkani Dictionary
 // Handles community suggestions and expert reviews
+// Database: PostgreSQL (accessed via req.pool from server.js)
 
 const express = require('express');
 const bcrypt = require('bcrypt');
@@ -12,6 +13,7 @@ const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 
 // Middleware to verify expert token
+// Database access: READ from contributors table
 const verifyExpert = async (req, res, next) => {
     try {
         const token = req.headers.authorization?.replace('Bearer ', '');
@@ -21,7 +23,7 @@ const verifyExpert = async (req, res, next) => {
 
         const decoded = jwt.verify(token, JWT_SECRET);
         
-        // Verify user is still an active expert
+        // Database READ: Check if user is active expert in contributors table
         const result = await req.pool.query(
             'SELECT * FROM contributors WHERE id = $1 AND is_expert = true AND is_active = true',
             [decoded.userId]
@@ -42,6 +44,7 @@ const verifyExpert = async (req, res, next) => {
 // Routes
 
 // 1. Submit a new suggestion (public route)
+// Database access: READ from contributors, WRITE to contributors (update count), READ from dictionary_entries (if correction), WRITE to dictionary_suggestions
 router.post('/suggestions', async (req, res) => {
     try {
         const {
@@ -65,7 +68,7 @@ router.post('/suggestions', async (req, res) => {
             return res.status(400).json({ message: 'At least Devanagari word or English meaning is required' });
         }
 
-        // Create or get contributor
+        // Database READ: Check if contributor exists in contributors table
         let contributor;
         const existingContributor = await req.pool.query(
             'SELECT * FROM contributors WHERE email = $1',
@@ -74,12 +77,13 @@ router.post('/suggestions', async (req, res) => {
 
         if (existingContributor.rows.length > 0) {
             contributor = existingContributor.rows[0];
-            // Update contribution count
+            // Database WRITE: Update contribution count in contributors table
             await req.pool.query(
                 'UPDATE contributors SET contributions_count = contributions_count + 1 WHERE id = $1',
                 [contributor.id]
             );
         } else {
+            // Database WRITE: Insert new contributor into contributors table
             const newContributor = await req.pool.query(
                 'INSERT INTO contributors (email, name, contributions_count) VALUES ($1, $2, 1) RETURNING *',
                 [contributorEmail, contributorName]
@@ -87,7 +91,7 @@ router.post('/suggestions', async (req, res) => {
             contributor = newContributor.rows[0];
         }
 
-        // Get original entry data if it's a correction
+        // Database READ: Get original entry data if it's a correction (from dictionary_entries table)
         let originalData = {};
         if (suggestionType === 'correction' && originalEntryId) {
             const originalEntry = await req.pool.query(
@@ -106,7 +110,7 @@ router.post('/suggestions', async (req, res) => {
             }
         }
 
-        // Insert suggestion
+        // Database WRITE: Insert suggestion into dictionary_suggestions table
         const suggestion = await req.pool.query(`
             INSERT INTO dictionary_suggestions (
                 original_entry_id,
@@ -150,6 +154,7 @@ router.post('/suggestions', async (req, res) => {
 });
 
 // 2. Expert login
+// Database access: READ from contributors table, WRITE to contributors (update last_login)
 router.post('/admin/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -158,7 +163,7 @@ router.post('/admin/login', async (req, res) => {
             return res.status(400).json({ message: 'Email and password are required' });
         }
 
-        // Find expert user
+        // Database READ: Find expert user in contributors table
         const result = await req.pool.query(
             'SELECT * FROM contributors WHERE email = $1 AND is_expert = true AND is_active = true',
             [email]
@@ -179,7 +184,7 @@ router.post('/admin/login', async (req, res) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
-        // Update last login
+        // Database WRITE: Update last login in contributors table
         await req.pool.query(
             'UPDATE contributors SET last_login = NOW() WHERE id = $1',
             [user.id]
@@ -219,9 +224,10 @@ router.get('/admin/validate', verifyExpert, (req, res) => {
 });
 
 // 4. Get dashboard statistics
+// Database access: READ from dictionary_suggestions and contributors tables (counts)
 router.get('/admin/stats', verifyExpert, async (req, res) => {
     try {
-        // Get pending suggestions count
+        // Database READ: Get pending suggestions count from dictionary_suggestions
         const pending = await req.pool.query(
             'SELECT COUNT(*) FROM dictionary_suggestions WHERE status = $1',
             ['pending']
@@ -229,17 +235,19 @@ router.get('/admin/stats', verifyExpert, async (req, res) => {
 
         // Get today's approved/rejected counts
         const today = new Date().toISOString().split('T')[0];
+        // Database READ: Get approved today count from dictionary_suggestions
         const approvedToday = await req.pool.query(
             'SELECT COUNT(*) FROM dictionary_suggestions WHERE status = $1 AND DATE(reviewed_at) = $2',
             ['approved', today]
         );
 
+        // Database READ: Get rejected today count from dictionary_suggestions
         const rejectedToday = await req.pool.query(
             'SELECT COUNT(*) FROM dictionary_suggestions WHERE status = $1 AND DATE(reviewed_at) = $2',
             ['rejected', today]
         );
 
-        // Get active contributors count
+        // Database READ: Get active contributors count from dictionary_suggestions (distinct contributor_id)
         const activeContributors = await req.pool.query(
             'SELECT COUNT(DISTINCT contributor_id) FROM dictionary_suggestions WHERE created_at >= NOW() - INTERVAL \'30 days\''
         );
@@ -258,6 +266,7 @@ router.get('/admin/stats', verifyExpert, async (req, res) => {
 });
 
 // 5. Get suggestions for review
+// Database access: READ from dictionary_suggestions, contributors tables (with JOIN)
 router.get('/admin/suggestions', verifyExpert, async (req, res) => {
     try {
         const {
@@ -305,6 +314,7 @@ router.get('/admin/suggestions', verifyExpert, async (req, res) => {
         query += ` OFFSET $${paramCount}`;
         params.push(offset);
 
+        // Database READ: Execute the query to fetch suggestions with contributor info
         const result = await req.pool.query(query, params);
         res.json(result.rows);
 
@@ -315,10 +325,12 @@ router.get('/admin/suggestions', verifyExpert, async (req, res) => {
 });
 
 // 6. Get single suggestion details
+// Database access: READ from dictionary_suggestions, contributors tables (with JOIN)
 router.get('/admin/suggestions/:id', verifyExpert, async (req, res) => {
     try {
         const { id } = req.params;
 
+        // Database READ: Fetch single suggestion with contributor and reviewer info
         const result = await req.pool.query(`
             SELECT 
                 s.*,
@@ -344,6 +356,8 @@ router.get('/admin/suggestions/:id', verifyExpert, async (req, res) => {
 });
 
 // 7. Review suggestion (approve/reject)
+// Database access: READ from dictionary_suggestions, WRITE to dictionary_suggestions (update status), 
+// WRITE to dictionary_entries (insert/update), WRITE to dictionary_change_log (insert), WRITE to contributors (update count)
 router.post('/admin/suggestions/:id/review', verifyExpert, async (req, res) => {
     try {
     const { id } = req.params;
@@ -353,7 +367,7 @@ router.post('/admin/suggestions/:id/review', verifyExpert, async (req, res) => {
             return res.status(400).json({ message: 'Decision must be "approved" or "rejected"' });
         }
 
-        // Get suggestion details
+        // Database READ: Get suggestion details from dictionary_suggestions
         const suggestionResult = await req.pool.query(
             'SELECT * FROM dictionary_suggestions WHERE id = $1',
             [id]
@@ -370,7 +384,7 @@ router.post('/admin/suggestions/:id/review', verifyExpert, async (req, res) => {
         try {
             await client.query('BEGIN');
 
-            // Update suggestion status
+            // Database WRITE: Update suggestion status in dictionary_suggestions
             await client.query(`
                 UPDATE dictionary_suggestions 
                 SET status = $1, reviewed_by = $2, reviewed_at = NOW(), reviewer_notes = $3
@@ -380,7 +394,7 @@ router.post('/admin/suggestions/:id/review', verifyExpert, async (req, res) => {
             // If approved, apply changes to dictionary
                 if (decision === 'approved') {
                 if (suggestion.suggestion_type === 'addition') {
-                    // Add new entry
+                    // Database WRITE: Add new entry to dictionary_entries
                         const newEntry = await client.query(`
                         INSERT INTO dictionary_entries (
                             word_konkani_devanagari,
@@ -397,7 +411,7 @@ router.post('/admin/suggestions/:id/review', verifyExpert, async (req, res) => {
                             (apply && apply.suggested_context_usage_sentence) || suggestion.suggested_context_usage_sentence
                     ]);
 
-                    // Log the change
+                    // Database WRITE: Log the change in dictionary_change_log
                     await client.query(`
                         INSERT INTO dictionary_change_log (
                             entry_id, suggestion_id, change_type, 
@@ -418,13 +432,13 @@ router.post('/admin/suggestions/:id/review', verifyExpert, async (req, res) => {
                     ]);
 
                     } else if (suggestion.suggestion_type === 'correction' && suggestion.original_entry_id) {
-                    // Get current entry for logging
+                    // Database READ: Get current entry for logging from dictionary_entries
                     const currentEntry = await client.query(
                         'SELECT * FROM dictionary_entries WHERE id = $1',
                         [suggestion.original_entry_id]
                     );
 
-                    // Update existing entry
+                    // Database WRITE: Update existing entry in dictionary_entries
                     await client.query(`
                         UPDATE dictionary_entries 
                         SET 
@@ -443,7 +457,7 @@ router.post('/admin/suggestions/:id/review', verifyExpert, async (req, res) => {
                         suggestion.original_entry_id
                     ]);
 
-                    // Log the change
+                    // Database WRITE: Log the change in dictionary_change_log
                     await client.query(`
                         INSERT INTO dictionary_change_log (
                             entry_id, suggestion_id, change_type,
@@ -465,7 +479,7 @@ router.post('/admin/suggestions/:id/review', verifyExpert, async (req, res) => {
                     ]);
                 }
 
-                // Update contributor's approved count
+                // Database WRITE: Update contributor's approved count in contributors
                 await client.query(
                     'UPDATE contributors SET approved_contributions = approved_contributions + 1 WHERE id = $1',
                     [suggestion.contributor_id]

@@ -488,7 +488,20 @@
     </div>
 
     <script>
-        const API_BASE = 'https://konkani-dictionary-production.up.railway.app/api';
+        // API base URL configuration (supports multiple environments)
+        const getApiBaseUrl = () => {
+            // Priority: Environment variable > Auto-detection
+            if (window.API_BASE_URL) {
+                return window.API_BASE_URL;
+            }
+
+            // Auto-detection based on hostname
+            return window.location.hostname === 'localhost'
+                ? 'http://localhost:3002/api'
+                : 'https://konkani-dictionary-production.up.railway.app/api';
+        };
+
+        const API_BASE = getApiBaseUrl();
         let currentUser = null;
         let currentSuggestion = null;
         

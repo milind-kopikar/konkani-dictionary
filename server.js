@@ -10,40 +10,102 @@ const app = express();
 const PORT = process.env.PORT || 3002;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
-// Database connection (Railway and GCP compatible)
-let connectionString = process.env.DATABASE_URL;
+// ==========================================
+// ENVIRONMENT CONFIGURATION
+// ==========================================
 
-// If DATABASE_URL is not provided, construct it from PG* variables
+// Environment detection and API base configuration
+const getApiBaseUrl = () => {
+  // Priority: Environment variable > Auto-detection
+  if (process.env.API_BASE_URL) {
+    return process.env.API_BASE_URL;
+  }
+
+  // Auto-detection based on hostname (for client-side)
+  if (typeof window !== 'undefined') {
+    return window.location.hostname === 'localhost'
+      ? 'http://localhost:3002/api'
+      : 'https://konkani-dictionary-production.up.railway.app/api';
+  }
+
+  // Server-side defaults
+  return NODE_ENV === 'production'
+    ? 'https://konkani-dictionary-production.up.railway.app/api'
+    : 'http://localhost:3002/api';
+};
+
+// ==========================================
+// DATABASE CONFIGURATION (Multi-Cloud Support)
+// ==========================================
+
+// Database connection (supports multiple cloud providers)
+// Priority order: DATABASE_URL > Individual PG vars > Defaults
+let connectionString = process.env.DATABASE_URL; // Railway, Google Cloud SQL, Azure
+
+// If DATABASE_URL is not provided, construct from individual PG* variables
+// This works for local development and various cloud providers
 if (!connectionString && process.env.PGHOST) {
   connectionString = `postgresql://${process.env.PGUSER}:${process.env.PGPASSWORD}@${process.env.PGHOST}:${process.env.PGPORT}/${process.env.PGDATABASE}`;
 }
 
-const pool = new Pool({
-  // Railway format (connectionString takes precedence)
+// Enhanced database configuration object with provider-specific settings
+const dbConfig = {
   connectionString: connectionString,
-  // Fallback to Railway PG* variables or GCP individual parameters
   host: process.env.PGHOST || process.env.DB_HOST || 'localhost',
   port: process.env.PGPORT || process.env.DB_PORT || 5432,
   database: process.env.PGDATABASE || process.env.DB_NAME || 'konkani_dictionary',
   user: process.env.PGUSER || process.env.DB_USER || 'konkani_dev',
   password: process.env.PGPASSWORD || process.env.DB_PASSWORD,
-  // SSL configuration for Railway (more permissive)
-  ssl: NODE_ENV === 'production' ? { 
-    rejectUnauthorized: false,
-    require: true 
-  } : false,
-  client_encoding: 'UTF8'
-});
 
-// Debug database connection
+  // SSL configuration (varies by provider)
+  ssl: NODE_ENV === 'production' ? {
+    // Railway: rejectUnauthorized false for self-signed certs
+    rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+    // Google Cloud SQL: may need ca cert path
+    ca: process.env.DB_SSL_CA,
+    // Azure: may need different SSL settings
+    cert: process.env.DB_SSL_CERT,
+    key: process.env.DB_SSL_KEY
+  } : false,
+
+  client_encoding: 'UTF8',
+
+  // Connection pool settings (adjustable per provider)
+  max: parseInt(process.env.DB_POOL_MAX || '20'), // Railway default
+  idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT || '30000'),
+  connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT || '2000'),
+};
+
+// Detect database provider for logging and configuration
+const detectDatabaseProvider = () => {
+  if (!connectionString) return 'Local PostgreSQL';
+
+  if (connectionString.includes('railway')) return 'Railway';
+  if (connectionString.includes('cloudsql') || connectionString.includes('google')) return 'Google Cloud SQL';
+  if (connectionString.includes('azure') || connectionString.includes('database.windows.net')) return 'Azure Database';
+  if (connectionString.includes('aws') || connectionString.includes('rds.amazonaws.com')) return 'AWS RDS';
+
+  return 'Custom/Unknown';
+};
+
+const pool = new Pool(dbConfig);
+
+// Enhanced debug logging for database configuration
 console.log('🔧 Database Configuration:');
 console.log('  NODE_ENV:', NODE_ENV);
-console.log('  CONNECTION_STRING:', connectionString ? 'Present' : 'Missing');
+console.log('  Provider:', detectDatabaseProvider());
+console.log('  DATABASE_URL env var:', process.env.DATABASE_URL ? 'Present' : 'Missing');
 console.log('  PGHOST:', process.env.PGHOST || 'Missing');
 console.log('  PGPORT:', process.env.PGPORT || 'Missing');
 console.log('  PGDATABASE:', process.env.PGDATABASE || 'Missing');
 console.log('  PGUSER:', process.env.PGUSER || 'Missing');
 console.log('  PGPASSWORD:', process.env.PGPASSWORD ? 'Present' : 'Missing');
+console.log('  Final connection string:', connectionString ? 'Present' : 'Not present');
+console.log('  SSL enabled:', !!dbConfig.ssl);
+console.log('  SSL rejectUnauthorized:', dbConfig.ssl?.rejectUnauthorized);
+console.log('  Connection pool max:', dbConfig.max);
+console.log('  Connection pool idle timeout:', dbConfig.idleTimeoutMillis + 'ms');
+console.log('  Connection timeout:', dbConfig.connectionTimeoutMillis + 'ms');
 
 // CORS configuration for multiple origins (GitHub Pages + custom domains)
 const corsOptions = {
@@ -119,6 +181,7 @@ app.get('/', (req, res) => {
 
 // Get all entries (paginated)
 app.get('/api/dictionary', async (req, res) => {
+  console.log('📚 /api/dictionary called - fetching entries...');
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -142,6 +205,7 @@ app.get('/api/dictionary', async (req, res) => {
     const countResult = await pool.query('SELECT COUNT(*) FROM dictionary_entries');
     const total = parseInt(countResult.rows[0].count);
 
+    console.log(`📚 Returning ${result.rows.length} entries (page ${page}, total: ${total})`);
     res.json({
       entries: result.rows,
       pagination: {
@@ -152,7 +216,7 @@ app.get('/api/dictionary', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching entries:', error);
+    console.error('❌ Error fetching entries:', error);
     res.status(500).json({ error: 'Failed to fetch dictionary entries' });
   }
 });
@@ -278,6 +342,7 @@ app.get('/api/dictionary/:id', async (req, res) => {
 
 // Database stats
 app.get('/api/stats', async (req, res) => {
+  console.log('📊 /api/stats called - querying database...');
   try {
     const queries = [
       { label: 'total_entries', query: 'SELECT COUNT(*) as count FROM dictionary_entries' },
@@ -292,14 +357,53 @@ app.get('/api/stats', async (req, res) => {
       stats[label] = parseInt(result.rows[0].count);
     }
 
+    console.log('📊 Stats result:', stats);
     res.json(stats);
   } catch (error) {
-    console.error('Error fetching stats:', error);
+    console.error('❌ Error fetching stats:', error);
     res.status(500).json({ error: 'Failed to fetch statistics' });
   }
 });
 
-// [Removed temporary debug endpoint '/api/dbinfo']
+// Debug endpoint to show database connection info
+app.get('/api/debug/db', async (req, res) => {
+  try {
+    // Test database connection
+    const result = await pool.query('SELECT current_database(), current_user, version()');
+    res.json({
+      database: result.rows[0].current_database,
+      user: result.rows[0].current_user,
+      version: result.rows[0].version,
+      connection_type: connectionString ? 'DATABASE_URL (Railway/Google Cloud/Azure)' : 'Individual PG vars (Local/Custom)',
+      node_env: NODE_ENV,
+      ssl_enabled: !!dbConfig.ssl,
+      pool_max: dbConfig.max,
+      host: process.env.PGHOST || process.env.DB_HOST || 'localhost',
+      port: process.env.PGPORT || process.env.DB_PORT || 5432,
+      provider: detectDatabaseProvider(),
+      connection_pool: {
+        max: dbConfig.max,
+        idle_timeout_ms: dbConfig.idleTimeoutMillis,
+        connection_timeout_ms: dbConfig.connectionTimeoutMillis
+      },
+      ssl_config: dbConfig.ssl ? {
+        reject_unauthorized: dbConfig.ssl.rejectUnauthorized,
+        has_ca: !!dbConfig.ssl.ca,
+        has_cert: !!dbConfig.ssl.cert,
+        has_key: !!dbConfig.ssl.key
+      } : null
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Database connection failed',
+      details: error.message,
+      connection_type: connectionString ? 'DATABASE_URL (Railway/Google Cloud/Azure)' : 'Individual PG vars (Local/Custom)',
+      node_env: NODE_ENV,
+      ssl_enabled: !!dbConfig.ssl,
+      provider: detectDatabaseProvider()
+    });
+  }
+});
 
 // Migration endpoint (for Railway deployment)
 
