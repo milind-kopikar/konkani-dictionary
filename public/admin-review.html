@@ -900,6 +900,18 @@
                 suggested_context_usage_sentence: document.getElementById('apply_context') ? document.getElementById('apply_context').value.trim() : undefined
             };
             
+            // DEBUG: Log what we're sending to the backend
+            console.log('🔍 FRONTEND DEBUG - Sending to backend:');
+            console.log('  Decision:', decision);
+            console.log('  Notes:', notes);
+            console.log('  Apply object (expert edits):', apply);
+            console.log('  Original suggestion values:', {
+                devanagari: currentSuggestion.suggested_word_konkani_devanagari,
+                roman: currentSuggestion.suggested_word_konkani_english_alphabet,
+                meaning: currentSuggestion.suggested_english_meaning,
+                context: currentSuggestion.suggested_context_usage_sentence
+            });
+            
             try {
                 const response = await fetch(`${API_BASE}/admin/suggestions/${currentSuggestion.id}/review`, {
                     method: 'POST',

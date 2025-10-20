@@ -1003,7 +1003,14 @@ app.get('/api/admin/suggestions/:id', verifyExpert, async (req, res) => {
 app.post('/api/admin/suggestions/:id/review', verifyExpert, async (req, res) => {
     try {
         const { id } = req.params;
-        const { decision, notes } = req.body;
+        const { decision, notes, apply } = req.body;
+
+        // DEBUG: Log the received data
+        console.log('🔍 REVIEW REQUEST DEBUG:');
+        console.log('  Suggestion ID:', id);
+        console.log('  Decision:', decision);
+        console.log('  Notes:', notes);
+        console.log('  Apply object:', JSON.stringify(apply, null, 2));
 
         if (!['approved', 'rejected'].includes(decision)) {
             return res.status(400).json({ message: 'Decision must be "approved" or "rejected"' });
@@ -1021,6 +1028,13 @@ app.post('/api/admin/suggestions/:id/review', verifyExpert, async (req, res) => 
 
         const suggestion = suggestionResult.rows[0];
 
+        // DEBUG: Log original suggestion values
+        console.log('📋 ORIGINAL SUGGESTION VALUES:');
+        console.log('  Devanagari:', suggestion.suggested_word_konkani_devanagari);
+        console.log('  Roman:', suggestion.suggested_word_konkani_english_alphabet);
+        console.log('  Meaning:', suggestion.suggested_english_meaning);
+        console.log('  Context:', suggestion.suggested_context_usage_sentence);
+
         // Start transaction
         const client = await pool.connect();
         try {
@@ -1028,13 +1042,28 @@ app.post('/api/admin/suggestions/:id/review', verifyExpert, async (req, res) => 
 
             // Update suggestion status
             await client.query(`
-                UPDATE dictionary_suggestions 
+                UPDATE dictionary_suggestions
                 SET status = $1, reviewed_by = $2, reviewed_at = NOW(), reviewer_notes = $3
                 WHERE id = $4
             `, [decision, req.user.id, notes, id]);
 
             // If approved, apply changes to dictionary
             if (decision === 'approved') {
+                // Use expert-edited values if provided, otherwise fall back to original suggestion
+                const finalValues = {
+                    word_konkani_devanagari: apply?.suggested_word_konkani_devanagari ?? suggestion.suggested_word_konkani_devanagari,
+                    word_konkani_english_alphabet: apply?.suggested_word_konkani_english_alphabet ?? suggestion.suggested_word_konkani_english_alphabet,
+                    english_meaning: apply?.suggested_english_meaning ?? suggestion.suggested_english_meaning,
+                    context_usage_sentence: apply?.suggested_context_usage_sentence ?? suggestion.suggested_context_usage_sentence
+                };
+
+                // DEBUG: Log final values being applied
+                console.log('✅ FINAL VALUES BEING APPLIED TO DATABASE:');
+                console.log('  Devanagari:', finalValues.word_konkani_devanagari);
+                console.log('  Roman:', finalValues.word_konkani_english_alphabet);
+                console.log('  Meaning:', finalValues.english_meaning);
+                console.log('  Context:', finalValues.context_usage_sentence);
+
                 if (suggestion.suggestion_type === 'addition') {
                     // Add new entry
                     const newEntry = await client.query(`
@@ -1046,28 +1075,23 @@ app.post('/api/admin/suggestions/:id/review', verifyExpert, async (req, res) => 
                         ) VALUES ($1, $2, $3, $4)
                         RETURNING *
                     `, [
-                        suggestion.suggested_word_konkani_devanagari,
-                        suggestion.suggested_word_konkani_english_alphabet,
-                        suggestion.suggested_english_meaning,
-                        suggestion.suggested_context_usage_sentence
+                        finalValues.word_konkani_devanagari,
+                        finalValues.word_konkani_english_alphabet,
+                        finalValues.english_meaning,
+                        finalValues.context_usage_sentence
                     ]);
 
                     // Log the change
                     await client.query(`
                         INSERT INTO dictionary_change_log (
-                            entry_id, suggestion_id, change_type, 
+                            entry_id, suggestion_id, change_type,
                             new_values, changed_by, approved_by
                         ) VALUES ($1, $2, $3, $4, $5, $6)
                     `, [
                         newEntry.rows[0].id,
                         suggestion.id,
                         'addition',
-                        JSON.stringify({
-                            word_konkani_devanagari: suggestion.suggested_word_konkani_devanagari,
-                            word_konkani_english_alphabet: suggestion.suggested_word_konkani_english_alphabet,
-                            english_meaning: suggestion.suggested_english_meaning,
-                            context_usage_sentence: suggestion.suggested_context_usage_sentence
-                        }),
+                        JSON.stringify(finalValues),
                         suggestion.contributor_id,
                         req.user.id
                     ]);
@@ -1081,8 +1105,8 @@ app.post('/api/admin/suggestions/:id/review', verifyExpert, async (req, res) => 
 
                     // Update existing entry
                     await client.query(`
-                        UPDATE dictionary_entries 
-                        SET 
+                        UPDATE dictionary_entries
+                        SET
                             word_konkani_devanagari = COALESCE($1, word_konkani_devanagari),
                             word_konkani_english_alphabet = COALESCE($2, word_konkani_english_alphabet),
                             english_meaning = COALESCE($3, english_meaning),
@@ -1090,10 +1114,10 @@ app.post('/api/admin/suggestions/:id/review', verifyExpert, async (req, res) => 
                             updated_at = NOW()
                         WHERE id = $5
                     `, [
-                        suggestion.suggested_word_konkani_devanagari,
-                        suggestion.suggested_word_konkani_english_alphabet,
-                        suggestion.suggested_english_meaning,
-                        suggestion.suggested_context_usage_sentence,
+                        finalValues.word_konkani_devanagari,
+                        finalValues.word_konkani_english_alphabet,
+                        finalValues.english_meaning,
+                        finalValues.context_usage_sentence,
                         suggestion.original_entry_id
                     ]);
 
@@ -1108,12 +1132,7 @@ app.post('/api/admin/suggestions/:id/review', verifyExpert, async (req, res) => 
                         suggestion.id,
                         'correction',
                         JSON.stringify(currentEntry.rows[0]),
-                        JSON.stringify({
-                            word_konkani_devanagari: suggestion.suggested_word_konkani_devanagari,
-                            word_konkani_english_alphabet: suggestion.suggested_word_konkani_english_alphabet,
-                            english_meaning: suggestion.suggested_english_meaning,
-                            context_usage_sentence: suggestion.suggested_context_usage_sentence
-                        }),
+                        JSON.stringify(finalValues),
                         suggestion.contributor_id,
                         req.user.id
                     ]);
