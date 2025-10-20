@@ -60,7 +60,8 @@ const dbConfig = {
   // SSL configuration (varies by provider)
   ssl: NODE_ENV === 'production' ? {
     // Railway: rejectUnauthorized false for self-signed certs
-    rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+    // Default to false for Railway and other providers with self-signed certs
+    rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true',
     // Google Cloud SQL: may need ca cert path
     ca: process.env.DB_SSL_CA,
     // Azure: may need different SSL settings
